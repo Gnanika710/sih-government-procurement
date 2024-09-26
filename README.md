@@ -110,4 +110,3 @@ Before running this project, ensure you have the following installed on your sys
 
 ## Contact
 For any inquiries, reach out to [Ritu Verma](https://github.com/Ritu29verma).
-```
