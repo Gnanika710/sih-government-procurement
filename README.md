@@ -1,5 +1,4 @@
 
-```markdown
 # Government Procurement Price Benchmarking Application
 
 ## Overview
