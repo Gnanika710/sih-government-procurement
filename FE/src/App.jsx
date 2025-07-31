@@ -95,3 +95,7 @@ export default function App() {
     </BrowserRouter>
   );
 }
+import DebugAuth from './components-ansh/DebugAuth';
+
+// Add this route in your Routes section
+<Route path='/debug-auth' element={<DebugAuth />} />
