@@ -1,5 +1,5 @@
 export class errorHandler extends Error {
-  constructor(message, statusCode) {
+  constructor(statusCode, message) {  // Fixed parameter order
     super(message);
     this.statusCode = statusCode;
     this.message = message;

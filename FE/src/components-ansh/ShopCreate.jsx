@@ -1,236 +1,374 @@
-import React, { useState } from "react";
-import { AiOutlineEye, AiOutlineEyeInvisible } from "react-icons/ai";
-import { Link, useNavigate } from "react-router-dom";
-import { toast } from "react-toastify";
-import { useSelector } from "react-redux";
+import React, { useState, useEffect } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 
 const ShopCreate = () => {
-  const [name, setName] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [address, setAddress] = useState("");
-  const [zipCode, setZipCode] = useState("");
-  const [visible, setVisible] = useState(false);
-  const [website, setWebsite] = useState(""); // New field
-  const [selectedService, setSelectedService] = useState(""); // Changed to single service
-  const [socialMedia, setSocialMedia] = useState({
-    facebook: "",
-    instagram: "",
-    twitter: "",
-  }); // New field
-
-  const servicesList = [
-    "Construction",
-    "Electronics",
-    "Medical",
-    "Food Retailer",
-    "Furniture Store",
-    "Bookstore",
-    "Home Care",
-    "Clothing Store",
-    "Grocery Store",
-    "Automobile",
-  ];
-
   const navigate = useNavigate();
-  const { currentUser } = useSelector(state => state.user);
-  const userId = currentUser._id; 
-  // Handle service change
-  const handleServiceChange = (e) => {
-    setSelectedService(e.target.value);
-  };
+  const dispatch = useDispatch();
+  const { currentUser } = useSelector((state) => state.user);
+  
+  console.log('Current User from Redux:', currentUser); // Debug log
 
-  // Form submission logic
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const formData = {
-        name,
-        phoneNumber,
-        address,
-        zipCode,
-        website, // Include new fields in formData
-        selectedService, // Changed to single service
-        socialMedia,
-        userId
-      };
+  const [formData, setFormData] = useState({
+    name: '',
+    phoneNumber: '',
+    address: '',
+    zipCode: '',
+    website: '',
+    selectedService: '',
+    socialMedia: {
+      facebook: '',
+      instagram: '',
+      twitter: '',
+    },
+  });
 
-      const res = await fetch("http://localhost:3000/api/shop/create-shop", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${userId}`,
-        },
-        body: JSON.stringify(formData),
-      });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-      const data = await res.json();
-      if (data.success) {
-        toast.success("Shop registered successfully!");
-        navigate("/retailer-dashboard"); 
-      } else {
-        toast.error(data.message);
-      }
-    } catch (error) {
-      toast.error("Registration failed. Please try again.");
-      console.error("There was an error registering the shop!", error);
+  // Check if user is logged in and is a retailer
+  useEffect(() => {
+    console.log('Shop Create - User Effect:', currentUser);
+    
+    if (!currentUser) {
+      toast.error('Please log in first');
+      navigate('/retailer-signin');
+      return;
+    }
+
+    if (currentUser.userType !== 'retailer') {
+      toast.error('Only retailers can create shops');
+      navigate('/');
+      return;
+    }
+
+    if (currentUser.isShopCreated) {
+      toast.info('You already have a shop');
+      navigate('/retailer-dashboard');
+      return;
+    }
+  }, [currentUser, navigate]);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    
+    if (name.startsWith('socialMedia.')) {
+      const socialField = name.split('.')[1];
+      setFormData(prev => ({
+        ...prev,
+        socialMedia: {
+          ...prev.socialMedia,
+          [socialField]: value
+        }
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
     }
   };
 
+  const validateForm = () => {
+    if (!formData.name.trim()) {
+      setError('Shop name is required');
+      return false;
+    }
+    if (!formData.phoneNumber.trim()) {
+      setError('Phone number is required');
+      return false;
+    }
+    if (!formData.address.trim()) {
+      setError('Shop address is required');
+      return false;
+    }
+    if (!formData.zipCode.trim()) {
+      setError('Zip code is required');
+      return false;
+    }
+    if (!formData.selectedService) {
+      setError('Please select a service');
+      return false;
+    }
+    return true;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+
+    if (!validateForm()) {
+      return;
+    }
+
+    if (!currentUser || !currentUser._id) {
+      setError('User not found. Please log in again.');
+      toast.error('Please log in again');
+      navigate('/retailer-signin');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      console.log('Submitting shop data:', formData);
+      console.log('User ID:', currentUser._id);
+
+      const shopData = {
+        ...formData,
+        userId: currentUser._id, // Use the correct user ID from Redux
+      };
+
+      const response = await fetch('http://localhost:3000/api/shop/create-shop', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(shopData),
+      });
+
+      const data = await response.json();
+      console.log('Shop creation response:', data);
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to create shop');
+      }
+
+      if (data.success) {
+        toast.success(data.message || 'Shop created successfully!');
+        
+        // Update user state to reflect shop creation
+        // You might want to dispatch an action to update the user state here
+        
+        // Navigate to retailer dashboard
+        navigate('/retailer-dashboard');
+      } else {
+        throw new Error(data.message || 'Failed to create shop');
+      }
+
+    } catch (error) {
+      console.error('Shop creation error:', error);
+      setError(error.message);
+      toast.error(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Show loading if user data is not yet available
+  if (!currentUser) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex justify-center items-center min-h-screen bg-gray-50">
-      <div className="w-full max-w-5xl bg-white shadow-2xl h-auto rounded-lg p-8 m-4">
-        <h5 className="text-[30px] font-bold text-center text-[#353A5F]">
+    <div className="min-h-screen bg-gray-50 py-12">
+      <div className="max-w-2xl mx-auto bg-white rounded-lg shadow-md p-8">
+        <h2 className="text-3xl font-bold text-center text-gray-800 mb-8">
           Register your Shop
-        </h5>
-        <form className="space-y-6 mt-6" onSubmit={handleSubmit}>
-          {/* Shop Name Field */}
-          <div className="grid grid-cols-4 gap-4 items-center">
-            <label className="text-right text-[#353A5F] col-span-1">
-              Shop Name <span className="text-red-500">*</span>:
+        </h2>
+
+        {error && (
+          <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Shop Name */}
+          <div>
+            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+              Shop Name *
             </label>
             <input
               type="text"
+              id="name"
               name="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="col-span-2 block w-full px-4 py-2 border border-gray-300 rounded-sm shadow-md text-sm placeholder-gray-400 focus:outline-none focus:ring-[#7DA0CA] focus:border-[#7DA0CA]"
+              value={formData.name}
+              onChange={handleChange}
               required
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              placeholder="Enter your shop name"
             />
           </div>
 
-          <div className="grid grid-cols-4 gap-4 items-center">
-            <label className="text-right text-[#353A5F] col-span-1">
-              Phone Number <span className="text-red-500">*</span>:
+          {/* Phone Number */}
+          <div>
+            <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700 mb-2">
+              Phone Number *
             </label>
             <input
-              type="number"
+              type="tel"
+              id="phoneNumber"
               name="phoneNumber"
-              value={phoneNumber}
-              onChange={(e) => setPhoneNumber(e.target.value)}
-              className="col-span-2 block w-full px-4 py-2 border border-gray-300 rounded-sm shadow-md text-sm placeholder-gray-400 focus:outline-none focus:ring-[#7DA0CA] focus:border-[#7DA0CA]"
+              value={formData.phoneNumber}
+              onChange={handleChange}
               required
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              placeholder="+91-80-12345678"
             />
           </div>
 
-
-          <div className="grid grid-cols-4 gap-4 items-center">
-            <label className="text-right text-[#353A5F] col-span-1">
-              Shop Address <span className="text-red-500">*</span>:
+          {/* Shop Address */}
+          <div>
+            <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-2">
+              Shop Address *
             </label>
-            <input
-              type="text"
+            <textarea
+              id="address"
               name="address"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              className="col-span-2 block w-full px-4 py-2 border border-gray-300 rounded-sm shadow-md text-sm placeholder-gray-400 focus:outline-none focus:ring-[#7DA0CA] focus:border-[#7DA0CA]"
+              value={formData.address}
+              onChange={handleChange}
               required
+              rows="3"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              placeholder="Enter your complete shop address"
             />
           </div>
 
-          <div className="grid grid-cols-4 gap-4 items-center">
-            <label className="text-right text-[#353A5F] col-span-1">
-              Zip Code <span className="text-red-500">*</span>:
+          {/* Zip Code */}
+          <div>
+            <label htmlFor="zipCode" className="block text-sm font-medium text-gray-700 mb-2">
+              Zip Code *
             </label>
             <input
               type="text"
-              name=" zipCode"
-              value={ zipCode}
-              onChange={(e) => setZipCode(e.target.value)}
-              className="col-span-2 block w-full px-4 py-2 border border-gray-300 rounded-sm shadow-md text-sm placeholder-gray-400 focus:outline-none focus:ring-[#7DA0CA] focus:border-[#7DA0CA]"
+              id="zipCode"
+              name="zipCode"
+              value={formData.zipCode}
+              onChange={handleChange}
               required
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              placeholder="560001"
             />
           </div>
 
-          {/* Website Field */}
-          <div className="grid grid-cols-4 gap-4 items-center">
-            <label className="text-right text-[#353A5F] col-span-1">Website:</label>
+          {/* Website */}
+          <div>
+            <label htmlFor="website" className="block text-sm font-medium text-gray-700 mb-2">
+              Website
+            </label>
             <input
-              type="text"
+              type="url"
+              id="website"
               name="website"
-              value={website}
-              onChange={(e) => setWebsite(e.target.value)}
-              className="col-span-2 block w-full px-4 py-2 border border-gray-300 rounded-sm shadow-md text-sm placeholder-gray-400 focus:outline-none focus:ring-[#7DA0CA] focus:border-[#7DA0CA]"
+              value={formData.website}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              placeholder="https://yourshop.com"
             />
           </div>
 
-          {/* Services Dropdown */}
-          <div className="grid grid-cols-4 gap-4 items-center mt-6">
-            <label
-              htmlFor="services"
-              className="text-right text-[#353A5F] col-span-1"
-            >
-              Choose a Service <span className="text-red-500">*</span>:
+          {/* Service Selection */}
+          <div>
+            <label htmlFor="selectedService" className="block text-sm font-medium text-gray-700 mb-2">
+              Choose a Service *
             </label>
             <select
-              id="services"
-              name="services"
-              value={selectedService}
-              onChange={handleServiceChange}
+              id="selectedService"
+              name="selectedService"
+              value={formData.selectedService}
+              onChange={handleChange}
               required
-              className={`col-span-2 block w-full p-3 border rounded-md focus:outline-none focus:ring-2 ${
-                !selectedService
-                  ? "border-blue-500 focus:ring-blue-500"
-                  : "border-gray-300 focus:ring-middleGreen"
-              }`}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
             >
               <option value="">Select a service</option>
-              {servicesList.map((service, index) => (
-                <option key={index} value={service}>
-                  {service}
-                </option>
-              ))}
+              <option value="Electronics Retailer">Electronics Retailer</option>
+              <option value="Food Retailer">Food Retailer</option>
+              <option value="Clothing Retailer">Clothing Retailer</option>
+              <option value="Home & Garden">Home & Garden</option>
+              <option value="Sports & Fitness">Sports & Fitness</option>
+              <option value="Books & Media">Books & Media</option>
+              <option value="Other">Other</option>
             </select>
           </div>
 
           {/* Social Media Links */}
-          <div className="grid grid-cols-4 gap-4 items-center">
-            <label className="text-right text-[#353A5F] col-span-1">
-              Social Media Links:
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-4">
+              Social Media Links
             </label>
-            <div className="col-span-2 space-y-2">
-              <input
-                type="text"
-                name="facebook"
-                placeholder="Facebook"
-                value={socialMedia.facebook}
-                onChange={(e) =>
-                  setSocialMedia({ ...socialMedia, facebook: e.target.value })
-                }
-                className="block w-full px-4 py-2 border border-gray-300 rounded-sm shadow-md text-sm placeholder-gray-400 focus:outline-none focus:ring-[#7DA0CA] focus:border-[#7DA0CA]"
-              />
-              <input
-                type="text"
-                name="instagram"
-                placeholder="Instagram"
-                value={socialMedia.instagram}
-                onChange={(e) =>
-                  setSocialMedia({ ...socialMedia, instagram: e.target.value })
-                }
-                className="block w-full px-4 py-2 border border-gray-300 rounded-sm shadow-md text-sm placeholder-gray-400 focus:outline-none focus:ring-[#7DA0CA] focus:border-[#7DA0CA]"
-              />
-              <input
-                type="text"
-                name="twitter"
-                placeholder="Twitter"
-                value={socialMedia.twitter}
-                onChange={(e) =>
-                  setSocialMedia({ ...socialMedia, twitter: e.target.value })
-                }
-                className="block w-full px-4 py-2 border border-gray-300 rounded-sm shadow-md text-sm placeholder-gray-400 focus:outline-none focus:ring-[#7DA0CA] focus:border-[#7DA0CA]"
-              />
+            
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="facebook" className="block text-sm text-gray-600 mb-1">
+                  Facebook
+                </label>
+                <input
+                  type="url"
+                  id="facebook"
+                  name="socialMedia.facebook"
+                  value={formData.socialMedia.facebook}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  placeholder="https://facebook.com/yourshop"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="instagram" className="block text-sm text-gray-600 mb-1">
+                  Instagram
+                </label>
+                <input
+                  type="url"
+                  id="instagram"
+                  name="socialMedia.instagram"
+                  value={formData.socialMedia.instagram}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  placeholder="https://instagram.com/yourshop"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="twitter" className="block text-sm text-gray-600 mb-1">
+                  Twitter
+                </label>
+                <input
+                  type="url"
+                  id="twitter"
+                  name="socialMedia.twitter"
+                  value={formData.socialMedia.twitter}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  placeholder="https://twitter.com/yourshop"
+                />
+              </div>
             </div>
           </div>
 
           {/* Submit Button */}
-          <div className="mt-6 flex justify-center">
-            <button
-              type="submit"
-              className="w-1/2 py-2 mt-2 text-center bg-[#353A5F] text-white rounded-md cursor-pointer hover:bg-[#7DA0CA]"
-            >
-              Submit
-            </button>
-          </div>
+          <button
+            type="submit"
+            disabled={loading}
+            className={`w-full py-3 px-4 rounded-md text-white font-medium ${
+              loading
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500'
+            } transition duration-200`}
+          >
+            {loading ? 'Creating Shop...' : 'Create Shop'}
+          </button>
         </form>
+
+        <div className="mt-6 text-center">
+          <p className="text-sm text-gray-600">
+            Already have a shop?{' '}
+            <button
+              onClick={() => navigate('/retailer-dashboard')}
+              className="text-indigo-600 hover:text-indigo-500 font-medium"
+            >
+              Go to Dashboard
+            </button>
+          </p>
+        </div>
       </div>
     </div>
   );
