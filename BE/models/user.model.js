@@ -21,7 +21,7 @@ const userSchema = new mongoose.Schema(
       default:
         'https://img.freepik.com/premium-vector/man-avatar-profile-picture-vector-illustration_268834-538.jpg',
     },
-    // NEW FIELDS FOR RETAILER AND GOVERNMENT FUNCTIONALITY
+    // NEW FIELDS FOR GOVERNMENT AND RETAILER SUPPORT
     userType: {
       type: String,
       enum: ['customer', 'retailer', 'government'],

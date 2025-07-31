@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 
 # Government Procurement Price Benchmarking Application
 
@@ -110,3 +111,7 @@ Before running this project, ensure you have the following installed on your sys
 
 ## Contact
 For any inquiries, reach out to [Ritu Verma](https://github.com/Ritu29verma).
+=======
+# sih-government-procurement
+Government Procurement Price Benchmarking System
+>>>>>>> 3ce29a4202e0534ac0cb7677cb300eb86e768f4d

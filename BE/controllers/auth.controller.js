@@ -8,7 +8,7 @@ export const signup = async (req, res, next) => {
   try {
     const { username, email, password, userType = 'customer' } = req.body;
     
-    console.log('Signup request:', { username, email, userType });
+    console.log('Signup request received:', { username, email, userType });
     
     // Input validation
     if (!username || !email || !password) {
